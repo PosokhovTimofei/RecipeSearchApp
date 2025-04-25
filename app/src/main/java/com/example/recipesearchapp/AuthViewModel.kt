@@ -1,0 +1,50 @@
+package com.example.recipesearchapp
+
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
+
+// AuthViewModel.kt
+class AuthViewModel : ViewModel() {
+    private val apiService = ApiService.create()
+
+    private val _registerResult = MutableLiveData<Result<ApiResponse>>()
+    val registerResult: LiveData<Result<ApiResponse>> = _registerResult
+
+    private val _loginResult = MutableLiveData<Result<ApiResponse>>()
+    val loginResult: LiveData<Result<ApiResponse>> = _loginResult
+
+    fun registerUser(username: String, email: String, password: String) {
+        viewModelScope.launch {
+            try {
+                val response = apiService.registerUser(UserRegisterRequest(username, email, password))
+                if (response.isSuccessful) {
+                    _registerResult.value = Result.success(response.body()!!)
+                } else {
+                    _registerResult.value = Result.failure(Exception(response.errorBody()?.string()))
+                }
+            } catch (e: Exception) {
+                _registerResult.value = Result.failure(e)
+            }
+        }
+    }
+
+
+    fun loginUser(username: String, password: String) {
+        viewModelScope.launch {
+            try {
+                val response = apiService.loginUser(
+                    UserLoginRequest(username, password))
+                if (response.isSuccessful) {
+                    _loginResult.value = Result.success(response.body()!!)
+                } else {
+                    _loginResult.value = Result.failure(Exception(response.errorBody()?.string()))
+                }
+            } catch (e: Exception) {
+                _loginResult.value = Result.failure(e)
+            }
+        }
+    }
+}

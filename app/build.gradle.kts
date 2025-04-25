@@ -59,4 +59,17 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation(libs.material3) // Или новее
     implementation(libs.androidx.material.icons.extended)
+    implementation(libs.retrofit)
+    implementation(libs.converter.gson)
+    implementation(libs.logging.interceptor)
+
+    // Coroutines
+    implementation(libs.kotlinx.coroutines.android)
+
+    // Lifecycle
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.livedata.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx.v262)
+
+    implementation(libs.androidx.runtime.livedata)
 }

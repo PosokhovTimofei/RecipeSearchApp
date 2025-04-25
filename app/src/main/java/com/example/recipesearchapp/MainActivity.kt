@@ -1,9 +1,9 @@
 package com.example.recipesearchapp
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,19 +12,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
@@ -35,7 +31,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -44,29 +39,33 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.recipesearchapp.ui.theme.RecipeSearchAppTheme
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -82,12 +81,13 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun Navigation() {
     val navController = rememberNavController()
+    val authViewModel: AuthViewModel = viewModel()
 
     NavHost(navController = navController, startDestination = "greeting") {
         composable("greeting") { GreetingScreen(navController) }
-        composable("login") { LoginScreen(navController) }
+        composable("login") { LoginScreen(navController, authViewModel) }
         composable("search") { SearchScreen(navController) }
-        composable("register") {RegisterScreen(navController) }
+        composable("register") { RegisterScreen(navController, authViewModel) }
     }
 }
 
@@ -157,7 +157,7 @@ fun GreetingScreen(navController: NavController) {
 }
 
 @Composable
-fun LoginScreen(navController: NavController) {
+fun LoginScreen(navController: NavController, authViewModel: AuthViewModel) {
 
     val buttonModifier = Modifier
         .width(200.dp)
@@ -270,8 +270,7 @@ fun LoginScreen(navController: NavController) {
 }
 
 @Composable
-fun RegisterScreen(navController: NavController) {
-
+fun RegisterScreen(navController: NavController, authViewModel: AuthViewModel) {
     val buttonModifier = Modifier
         .width(200.dp)
         .height(40.dp)
@@ -281,9 +280,31 @@ fun RegisterScreen(navController: NavController) {
         contentColor = Color(0xfff5e5e9)
     )
 
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
+    // Поля ввода
+    val fullName = remember { mutableStateOf("") }
+    val email = remember { mutableStateOf("") }
+    val password = remember { mutableStateOf("") }
+    val confirmPassword = remember { mutableStateOf("") }
+
+    // Для показа сообщений
+    val context = LocalContext.current
+
+    // Наблюдаем за результатом регистрации
+    val registerResult by authViewModel.registerResult.observeAsState()
+
+    // Проверка результата и навигация при успехе
+    LaunchedEffect(registerResult) {
+        registerResult?.let {
+            if (it.isSuccess) {
+                Toast.makeText(context, "Регистрация успешна", Toast.LENGTH_SHORT).show()
+                navController.navigate("home")
+            } else {
+                Toast.makeText(context, "Ошибка: ${it.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
         // Фон
         Image(
             painter = painterResource(id = R.drawable.background),
@@ -292,7 +313,7 @@ fun RegisterScreen(navController: NavController) {
             modifier = Modifier.fillMaxSize()
         )
 
-        // Стрелка "назад"
+        // Назад
         IconButton(
             onClick = { navController.navigate("greeting") },
             modifier = Modifier
@@ -320,63 +341,63 @@ fun RegisterScreen(navController: NavController) {
                 modifier = Modifier.padding(bottom = 32.dp)
             )
 
-            // Fullname
             OutlinedTextField(
-                value = "",
-                onValueChange = {},
+                value = fullName.value,
+                onValueChange = { fullName.value = it },
                 label = { Text("Fullname") },
-                leadingIcon = {
-                    Icon(Icons.Default.Person, contentDescription = null)
-                },
+                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Email
             OutlinedTextField(
-                value = "",
-                onValueChange = {},
+                value = email.value,
+                onValueChange = { email.value = it },
                 label = { Text("Email") },
-                leadingIcon = {
-                    Icon(Icons.Default.Email, contentDescription = null)
-                },
+                leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Password
             OutlinedTextField(
-                value = "",
-                onValueChange = {},
+                value = password.value,
+                onValueChange = { password.value = it },
                 label = { Text("Password") },
-                leadingIcon = {
-                    Icon(Icons.Default.Lock, contentDescription = null)
-                },
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Confirm Password
             OutlinedTextField(
-                value = "",
-                onValueChange = {},
+                value = confirmPassword.value,
+                onValueChange = { confirmPassword.value = it },
                 label = { Text("Confirm Password") },
-                leadingIcon = {
-                    Icon(Icons.Default.Lock, contentDescription = null)
-                },
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Sign Up Button
             Button(
-                onClick = { navController.navigate("home") },
+                onClick = {
+                    // Простая проверка
+                    if (password.value != confirmPassword.value) {
+                        Toast.makeText(context, "Пароли не совпадают", Toast.LENGTH_SHORT).show()
+                    } else if (email.value.isBlank() || fullName.value.isBlank() || password.value.isBlank()) {
+                        Toast.makeText(context, "Пожалуйста, заполните все поля", Toast.LENGTH_SHORT).show()
+                    } else {
+                        authViewModel.registerUser(
+                            username = fullName.value,
+                            email = email.value,
+                            password = password.value
+                        )
+                    }
+                },
                 modifier = buttonModifier
                     .shadow(4.dp, shape = RoundedCornerShape(12.dp))
                     .clip(RoundedCornerShape(12.dp)),
@@ -387,7 +408,6 @@ fun RegisterScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(36.dp))
 
-            // Already have an account
             Text("Уже есть аккаунт?", fontSize = 14.sp)
             Text(
                 text = "Войти.",
@@ -398,6 +418,7 @@ fun RegisterScreen(navController: NavController) {
         }
     }
 }
+
 
 
 @Composable
