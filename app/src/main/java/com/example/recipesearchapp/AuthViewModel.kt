@@ -13,8 +13,8 @@ class AuthViewModel : ViewModel() {
     private val _registerResult = MutableLiveData<Result<ApiResponse>>()
     val registerResult: LiveData<Result<ApiResponse>> = _registerResult
 
-    private val _loginResult = MutableLiveData<Result<ApiResponse>>()
-    val loginResult: LiveData<Result<ApiResponse>> = _loginResult
+    private val _loginResult = MutableLiveData<Result<String>>()
+    val loginResult: LiveData<Result<String>> = _loginResult
 
     fun registerUser(username: String, email: String, password: String) {
         viewModelScope.launch {
@@ -35,10 +35,9 @@ class AuthViewModel : ViewModel() {
     fun loginUser(username: String, password: String) {
         viewModelScope.launch {
             try {
-                val response = apiService.loginUser(
-                    UserLoginRequest(username, password))
+                val response = apiService.loginUser(UserLoginRequest(username, password))
                 if (response.isSuccessful) {
-                    _loginResult.value = Result.success(response.body()!!)
+                    _loginResult.value = Result.success(response.body()!!)  // ✅ response.body() — это String
                 } else {
                     _loginResult.value = Result.failure(Exception(response.errorBody()?.string()))
                 }
@@ -47,4 +46,5 @@ class AuthViewModel : ViewModel() {
             }
         }
     }
+
 }

@@ -72,4 +72,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx.v262)
 
     implementation(libs.androidx.runtime.livedata)
+
+    implementation(libs.converter.scalars)
+
 }

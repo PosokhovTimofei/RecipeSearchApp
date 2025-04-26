@@ -1,6 +1,7 @@
 package com.example.recipesearchapp
 
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -159,6 +161,13 @@ fun GreetingScreen(navController: NavController) {
 @Composable
 fun LoginScreen(navController: NavController, authViewModel: AuthViewModel) {
 
+    // Состояние для текстовых полей
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var rememberMe by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+
+
     val buttonModifier = Modifier
         .width(200.dp)
         .height(40.dp)
@@ -167,6 +176,35 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel) {
         containerColor = Color(0xFF16b88c),
         contentColor = Color(0xfff5e5e9)
     )
+
+    val loginResult by authViewModel.loginResult.observeAsState()
+
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(loginResult) {
+        Log.d("LoginDebug", "LaunchedEffect triggered with result: $loginResult") // <-- вот это
+
+        loginResult?.let { result ->
+            isLoading = false
+            result.fold(
+                onSuccess = { responseText ->
+                    Log.d("LoginDebug", "Login success response: $responseText") // <-- и это
+
+                    if (responseText.contains("success", ignoreCase = true)) {
+                        navController.navigate("search") {
+                            popUpTo("login") { inclusive = true }
+                        }
+                    } else {
+                        errorMessage = "Неизвестный ответ от сервера: $responseText"
+                    }
+                },
+                onFailure = {
+                    Log.d("LoginDebug", "Login failed: ${it.message}") // <-- и это
+                    errorMessage = it.message ?: "Ошибка входа"
+                }
+            )
+        }
+    }
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -207,8 +245,8 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel) {
 
             // Username
             OutlinedTextField(
-                value = "",
-                onValueChange = {},
+                value = username,
+                onValueChange = { username = it },
                 label = { Text("Username or Email") },
                 leadingIcon = {
                     Icon(Icons.Default.Person, contentDescription = null)
@@ -220,8 +258,8 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel) {
 
             // Password
             OutlinedTextField(
-                value = "",
-                onValueChange = {},
+                value = password,
+                onValueChange = { password = it },
                 label = { Text("Password") },
                 leadingIcon = {
                     Icon(Icons.Default.Lock, contentDescription = null)
@@ -239,7 +277,7 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = false, onCheckedChange = {})
+                    Checkbox(checked = rememberMe, onCheckedChange = { rememberMe = it })
                     Text("Запомнить меня", fontSize = 14.sp)
                 }
 
@@ -247,7 +285,9 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel) {
                     text = "Забыли пароль?",
                     color = Color(0xFF1A8F84),
                     fontSize = 14.sp,
-                    modifier = Modifier.clickable { /* обработка */ }
+                    modifier = Modifier.clickable {
+                        // обработка клика на забытый пароль
+                    }
                 )
             }
 
@@ -255,19 +295,28 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel) {
 
             // Sign In Button
             Button(
-                onClick = { navController.navigate("search") },
-                modifier = buttonModifier
-                    .shadow(4.dp, shape = RoundedCornerShape(12.dp))
-                    .clip(RoundedCornerShape(12.dp)),
-                colors = loginColors
+                onClick = {
+                    if (username.isBlank() || password.isBlank()) {
+                        errorMessage = "Заполните все поля"
+                    } else if (!isLoading) {
+                        isLoading = true
+                        authViewModel.loginUser(username, password)
+                    }
+                },
+                enabled = !isLoading
             ) {
-                Text("Войти", color = Color.White)
+                if (isLoading) {
+                    CircularProgressIndicator(color = Color.White)
+                } else {
+                    Text("Войти", color = Color.White)
+                }
             }
 
             Spacer(modifier = Modifier.height(36.dp))
         }
     }
 }
+
 
 @Composable
 fun RegisterScreen(navController: NavController, authViewModel: AuthViewModel) {
