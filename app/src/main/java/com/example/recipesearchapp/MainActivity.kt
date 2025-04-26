@@ -182,13 +182,13 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(loginResult) {
-        Log.d("LoginDebug", "LaunchedEffect triggered with result: $loginResult") // <-- вот это
+        Log.d("LoginDebug", "LaunchedEffect triggered with result: $loginResult")
 
         loginResult?.let { result ->
             isLoading = false
             result.fold(
                 onSuccess = { responseText ->
-                    Log.d("LoginDebug", "Login success response: $responseText") // <-- и это
+                    Log.d("LoginDebug", "Login success response: $responseText")
 
                     if (responseText.contains("success", ignoreCase = true)) {
                         navController.navigate("search") {
@@ -303,6 +303,10 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel) {
                         authViewModel.loginUser(username, password)
                     }
                 },
+                modifier = buttonModifier
+                    .shadow(4.dp, shape = RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(12.dp)),
+                colors = loginColors,
                 enabled = !isLoading
             ) {
                 if (isLoading) {

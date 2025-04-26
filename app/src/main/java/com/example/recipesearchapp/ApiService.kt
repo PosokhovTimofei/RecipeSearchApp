@@ -7,7 +7,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.POST
-import retrofit2.converter.scalars.ScalarsConverterFactory // импортируем!
+import retrofit2.converter.scalars.ScalarsConverterFactory
 
 interface ApiService {
     @POST("/register")
