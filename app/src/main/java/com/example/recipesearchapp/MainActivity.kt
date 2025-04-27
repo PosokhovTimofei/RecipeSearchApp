@@ -350,7 +350,7 @@ fun RegisterScreen(navController: NavController, authViewModel: AuthViewModel) {
         registerResult?.let {
             if (it.isSuccess) {
                 Toast.makeText(context, "Регистрация успешна", Toast.LENGTH_SHORT).show()
-                navController.navigate("home")
+                navController.navigate("login")
             } else {
                 Toast.makeText(context, "Ошибка: ${it.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
             }
@@ -476,7 +476,15 @@ fun RegisterScreen(navController: NavController, authViewModel: AuthViewModel) {
 
 @Composable
 fun SearchScreen(navController: NavController) {
+    Box(modifier = Modifier.fillMaxSize()) { // Обернули всё в Box
+        Image(
+            painter = painterResource(id = R.drawable.background),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
     Scaffold(
+        containerColor = Color.Transparent,
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
@@ -588,6 +596,7 @@ fun SearchScreen(navController: NavController) {
             }
         }
     }
+}
 }
 
 

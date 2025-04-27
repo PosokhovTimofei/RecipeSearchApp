@@ -10,8 +10,9 @@ import retrofit2.http.POST
 import retrofit2.converter.scalars.ScalarsConverterFactory
 
 interface ApiService {
+    // Для текстовых ответов
     @POST("/register")
-    suspend fun registerUser(@Body request: UserRegisterRequest): Response<ApiResponse>
+    suspend fun registerUser(@Body request: UserRegisterRequest): Response<String>
 
     @POST("/login")
     suspend fun loginUser(@Body request: UserLoginRequest): Response<String> // возвращаем String
