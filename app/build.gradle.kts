@@ -75,4 +75,5 @@ dependencies {
 
     implementation(libs.converter.scalars)
 
+    implementation(libs.coil.compose)
 }
