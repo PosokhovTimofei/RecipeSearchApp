@@ -703,7 +703,12 @@ private fun CategoriesGrid(navController: NavController) {
         "lunch" to R.drawable.pasta,
         "dinner" to R.drawable.sides,
         "snack" to R.drawable.snacks,
-        "dessert" to R.drawable.desserts
+        "dessert" to R.drawable.desserts,
+        "popularity" to R.drawable.baking,
+        "healthiness" to R.drawable.salad,
+        "time" to R.drawable.sauces,
+        "price" to R.drawable.drinks,
+        "low-fat" to R.drawable.preserves
     )
 
     LazyVerticalGrid(
