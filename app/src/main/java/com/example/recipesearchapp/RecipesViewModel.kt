@@ -33,6 +33,7 @@ class RecipesViewModel : ViewModel() {
     }
 
     // Метод для загрузки рецептов по категории
+    // Метод для загрузки рецептов по категории
     fun loadCategoryRecipes(category: String) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -45,6 +46,7 @@ class RecipesViewModel : ViewModel() {
             }
         }
     }
+
 
     // Метод для поиска рецептов внутри категории
     fun searchInCategory(category: String, query: String) {

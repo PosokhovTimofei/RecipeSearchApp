@@ -699,31 +699,27 @@ private fun RecipeItem(recipe: Recipe, onClick: () -> Unit) {
 @Composable
 private fun CategoriesGrid(navController: NavController) {
     val categories = listOf(
-        "Первые блюда" to R.drawable.soup,
-        "Вторые блюда" to R.drawable.pasta,
-        "Салаты" to R.drawable.salad,
-        "Закуски" to R.drawable.snacks,
-        "Выпечка" to R.drawable.baking,
-        "Соусы и маринады" to R.drawable.sauces,
-        "Заготовки" to R.drawable.preserves,
-        "Напитки" to R.drawable.drinks,
-        "Десерты" to R.drawable.desserts,
-        "Гарниры" to R.drawable.sides
+        "breakfast" to R.drawable.soup,
+        "lunch" to R.drawable.pasta,
+        "dinner" to R.drawable.sides,
+        "snack" to R.drawable.snacks,
+        "dessert" to R.drawable.desserts
     )
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         modifier = Modifier.fillMaxSize()
     ) {
-        items(categories) { (title, imageRes) ->
+        items(categories) { (type, imageRes) ->
             CategoryItem(
-                title = title,
+                title = type,
                 imageRes = imageRes,
-                onClick = { navController.navigate("category/$title") }
+                onClick = { navController.navigate("category/$type") }
             )
         }
     }
 }
+
 
 @Composable
 private fun CategoryItem(title: String, imageRes: Int, onClick: () -> Unit) {
@@ -754,13 +750,13 @@ private fun CategoryItem(title: String, imageRes: Int, onClick: () -> Unit) {
 }
 
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategoryRecipesScreen(
     navController: NavController,
     categoryName: String
 ) {
-    // Инициализация viewModel внутри экрана
     val viewModel: RecipesViewModel = viewModel()
 
     var searchQuery by remember { mutableStateOf("") }
@@ -846,6 +842,7 @@ fun CategoryRecipesScreen(
         }
     }
 }
+
 
 
 
