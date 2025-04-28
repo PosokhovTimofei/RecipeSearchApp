@@ -3,10 +3,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.recipesearchapp.Recipe
+import com.example.recipesearchapp.RecipeInformation
 import com.example.recipesearchapp.SpoonacularClient
 import kotlinx.coroutines.launch
 
 class RecipesViewModel : ViewModel() {
+    private val _recipeInformation = mutableStateOf<RecipeInformation?>(null)
+    val recipeInformation: RecipeInformation? get() = _recipeInformation.value
+
     private val _recipes = mutableStateOf<List<Recipe>>(emptyList())
     val recipes: List<Recipe> get() = _recipes.value
 
@@ -32,8 +36,6 @@ class RecipesViewModel : ViewModel() {
         }
     }
 
-    // Метод для загрузки рецептов по категории
-    // Метод для загрузки рецептов по категории
     fun loadCategoryRecipes(category: String) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -61,7 +63,25 @@ class RecipesViewModel : ViewModel() {
             }
         }
     }
+
+    fun loadRecipeInformation(recipeId: Int) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val recipeInfo = SpoonacularClient.api.getRecipeInformation(recipeId)
+                _recipeInformation.value = recipeInfo
+            } catch (e: Exception) {
+                _recipeInformation.value = null
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
 }
+
+
+
 
 
 

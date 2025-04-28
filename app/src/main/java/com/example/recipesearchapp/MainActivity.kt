@@ -45,6 +45,7 @@ import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CardElevation
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -117,6 +118,10 @@ fun Navigation() {
                 navController = navController,
                 categoryName = categoryName
             )
+        }
+        composable("recipeDetail/{recipeId}") { backStackEntry ->
+            val recipeId = backStackEntry.arguments?.getString("recipeId")?.toInt() ?: 0
+            RecipeDetailScreen(navController = navController, recipeId = recipeId)
         }
     }
 }
@@ -658,43 +663,38 @@ private fun EmptyResults() {
 }
 
 @Composable
-private fun RecipesList(recipes: List<Recipe>, navController: NavController) {
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
+fun RecipesList(recipes: List<Recipe>, navController: NavController) {
+    LazyColumn {
         items(recipes) { recipe ->
-            RecipeItem(
-                recipe = recipe,
-                onClick = { navController.navigate("recipe/${recipe.id}") }
-            )
+            RecipeItem(recipe = recipe, onClick = {
+                // Переход на экран с подробной информацией
+                navController.navigate("recipeDetail/${recipe.id}")
+            })
         }
     }
 }
 
 @Composable
-private fun RecipeItem(recipe: Recipe, onClick: () -> Unit) {
+fun RecipeItem(recipe: Recipe, onClick: () -> Unit) {
     Card(
         modifier = Modifier
-            .padding(8.dp)
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(4.dp)
+            .clickable { onClick() }, // Обработчик клика
+        shape = RoundedCornerShape(8.dp)
     ) {
-        Column {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(recipe.title, style = MaterialTheme.typography.bodyLarge)
+            // Отображаем изображение рецепта
             AsyncImage(
                 model = recipe.image,
                 contentDescription = null,
-                modifier = Modifier
-                    .height(180.dp)
-                    .fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(150.dp),
                 contentScale = ContentScale.Crop
-            )
-            Text(
-                text = recipe.title,
-                modifier = Modifier.padding(16.dp),
-                style = MaterialTheme.typography.titleMedium
             )
         }
     }
 }
+
 
 @Composable
 private fun CategoriesGrid(navController: NavController) {
@@ -847,6 +847,142 @@ fun CategoryRecipesScreen(
         }
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RecipeDetailScreen(navController: NavController, recipeId: Int, viewModel: RecipesViewModel = viewModel()) {
+    // Загружаем информацию о рецепте при изменении recipeId
+    LaunchedEffect(recipeId) {
+        viewModel.loadRecipeInformation(recipeId)
+    }
+
+    val recipeInformation = viewModel.recipeInformation
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Рецепт") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .padding(16.dp)
+                .fillMaxSize()
+        ) {
+            // Если идет загрузка, показываем индикатор
+            if (viewModel.isLoading) {
+                LoadingIndicator()
+            } else if (recipeInformation != null) {
+                RecipeDetailContent(recipeInformation)
+            } else {
+                EmptyResults()  // Если информации нет, показываем сообщение
+            }
+        }
+    }
+}
+
+
+@Composable
+fun RecipeDetailContent(recipeInformation: RecipeInformation) {
+    Column {
+        // Название рецепта
+        Text(
+            text = recipeInformation.title ?: "Без названия",
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        // Изображение рецепта
+        AsyncImage(
+            model = recipeInformation.image,
+            contentDescription = null,
+            modifier = Modifier
+                .height(200.dp)
+                .fillMaxWidth(),
+            contentScale = ContentScale.Crop
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Инструкции по приготовлению
+        recipeInformation.instructions?.let { instructions ->
+            Text(
+                text = instructions,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+
+        // Ингредиенты
+        if (!recipeInformation.ingredients.isNullOrEmpty()) {
+            Text(
+                text = "Ингредиенты:",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            recipeInformation.ingredients.orEmpty().forEach { ingredient ->
+                Text(
+                    text = "${ingredient.name}: ${ingredient.amount} ${ingredient.unit}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Дополнительная информация
+        recipeInformation.readyInMinutes?.let {
+            Text(
+                text = "Время приготовления: ${it} минут",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        recipeInformation.servings?.let {
+            Text(
+                text = "Порции: $it",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        recipeInformation.diet?.let {
+            Text(
+                text = "Диетический тип: $it",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        recipeInformation.healthScore?.let {
+            Text(
+                text = "Оценка здоровья: $it",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Типы кухни
+        if (!recipeInformation.cuisines.isNullOrEmpty()) {
+            Text(
+                text = "Типы кухни:",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            recipeInformation.cuisines.orEmpty().forEach { cuisine ->
+                Text(
+                    text = cuisine,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+    }
+}
+
+
 
 
 

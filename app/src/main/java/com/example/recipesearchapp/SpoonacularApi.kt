@@ -5,6 +5,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
+import retrofit2.http.Path
 import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
 
@@ -43,12 +44,18 @@ interface SpoonacularApi {
         @Query("apiKey") apiKey: String = "f5341e440ba84573a6c3d76a69175021"
     ): RecipeResponse
 
-    // 🔥 Поиск внутри категории
     @GET("recipes/complexSearch")
     suspend fun searchRecipesInCategory(
         @Query("type") type: String,
         @Query("query") query: String,
         @Query("apiKey") apiKey: String = "f5341e440ba84573a6c3d76a69175021"
     ): RecipeResponse
+
+    @GET("recipes/{id}/information")
+    suspend fun getRecipeInformation(
+        @Path("id") id: Int,
+        @Query("apiKey") apiKey: String = "f5341e440ba84573a6c3d76a69175021"
+    ): RecipeInformation
+
 }
 
