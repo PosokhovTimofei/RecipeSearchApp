@@ -20,7 +20,7 @@ interface ApiService {
     companion object {
         fun create(): ApiService {
             val retrofit = Retrofit.Builder()
-                .baseUrl("http://192.168.50.237:8080")
+                .baseUrl("http://10.0.2.2:8080") // .baseUrl("http://192.168.50.237:8080")
                 .addConverterFactory(ScalarsConverterFactory.create()) // СНАЧАЛА текст!
                 .addConverterFactory(GsonConverterFactory.create())     // ПОТОМ JSON
                 .client(
