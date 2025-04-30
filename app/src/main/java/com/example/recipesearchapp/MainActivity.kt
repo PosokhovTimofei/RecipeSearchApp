@@ -15,6 +15,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -24,7 +25,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -35,6 +35,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
@@ -44,8 +45,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CardElevation
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -104,27 +103,40 @@ class MainActivity : ComponentActivity() {
 fun Navigation() {
     val navController = rememberNavController()
     val authViewModel: AuthViewModel = viewModel()
+    val recipesViewModel: RecipesViewModel = viewModel() // ✅ ОДИН экземпляр на все экраны
 
     NavHost(navController = navController, startDestination = "greeting") {
-        composable("greeting") { GreetingScreen(navController) }
-        composable("login") { LoginScreen(navController, authViewModel) }
-        composable("search") { SearchScreen(navController) }
-        composable("register") { RegisterScreen(navController, authViewModel) }
-
-        // Для экрана категории используйте viewModel внутри экрана
+        composable("greeting") {
+            GreetingScreen(navController)
+        }
+        composable("login") {
+            LoginScreen(navController, authViewModel)
+        }
+        composable("register") {
+            RegisterScreen(navController, authViewModel)
+        }
+        composable("search") {
+            SearchScreen(navController, recipesViewModel) // ✅ передаём тот же viewModel
+        }
+        composable("favorites") {
+            FavoritesScreen(navController, recipesViewModel) // ✅ тот же viewModel
+        }
         composable("category/{categoryName}") { backStackEntry ->
             val categoryName = backStackEntry.arguments?.getString("categoryName") ?: ""
             CategoryRecipesScreen(
                 navController = navController,
-                categoryName = categoryName
+                categoryName = categoryName,
+                recipesViewModel = recipesViewModel // ← всё ок
             )
         }
+
         composable("recipeDetail/{recipeId}") { backStackEntry ->
-            val recipeId = backStackEntry.arguments?.getString("recipeId")?.toInt() ?: 0
-            RecipeDetailScreen(navController = navController, recipeId = recipeId)
+            val recipeId = backStackEntry.arguments?.getString("recipeId")?.toIntOrNull() ?: 0
+            RecipeDetailScreen(navController = navController, recipeId = recipeId, recipesViewModel = recipesViewModel)
         }
     }
 }
+
 
 
 @Composable
@@ -545,16 +557,15 @@ fun RegisterScreen(navController: NavController, authViewModel: AuthViewModel) {
 @Composable
 fun SearchScreen(
     navController: NavController,
-    viewModel: RecipesViewModel = viewModel()
+    recipesViewModel: RecipesViewModel
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
-    // Загрузка данных при изменении запроса
     LaunchedEffect(searchQuery) {
         if (searchQuery.length > 2) {
-            viewModel.searchRecipes(searchQuery)
+            recipesViewModel.searchRecipes(searchQuery)
         } else {
-            viewModel.clearResults()
+            recipesViewModel.clearResults()
         }
     }
 
@@ -597,7 +608,6 @@ fun SearchScreen(
                     .padding(16.dp)
                     .fillMaxSize()
             ) {
-                // Поисковая строка
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
@@ -618,26 +628,22 @@ fun SearchScreen(
                     shape = RoundedCornerShape(12.dp),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Tune,
-                        contentDescription = null
-                    )
+                    Icon(Icons.Default.Tune, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "Все фильтры")
+                    Text("Все фильтры")
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Контент в зависимости от состояния
                 when {
-                    viewModel.isLoading -> {
+                    recipesViewModel.isLoading -> {
                         LoadingIndicator()
                     }
-                    searchQuery.isNotEmpty() && viewModel.recipes.isEmpty() -> {
+                    searchQuery.isNotEmpty() && recipesViewModel.recipes.isEmpty() -> {
                         EmptyResults()
                     }
                     searchQuery.isNotEmpty() -> {
-                        RecipesList(viewModel.recipes, navController)
+                        RecipesList(recipesViewModel.recipes, navController, recipesViewModel)
                     }
                     else -> {
                         CategoriesGrid(navController)
@@ -647,6 +653,7 @@ fun SearchScreen(
         }
     }
 }
+
 
 @Composable
 private fun LoadingIndicator() {
@@ -663,38 +670,68 @@ private fun EmptyResults() {
 }
 
 @Composable
-fun RecipesList(recipes: List<Recipe>, navController: NavController) {
-    LazyColumn {
-        items(recipes) { recipe ->
-            RecipeItem(recipe = recipe, onClick = {
-                // Переход на экран с подробной информацией
-                navController.navigate("recipeDetail/${recipe.id}")
-            })
-        }
-    }
-}
-
-@Composable
-fun RecipeItem(recipe: Recipe, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }, // Обработчик клика
-        shape = RoundedCornerShape(8.dp)
+fun RecipesList(
+    recipes: List<Recipe>,
+    navController: NavController,
+    recipesViewModel: RecipesViewModel,
+    contentPadding: PaddingValues = PaddingValues(0.dp) // по умолчанию пусто
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = contentPadding, // учёт отступов от Scaffold
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(recipe.title, style = MaterialTheme.typography.bodyLarge)
-            // Отображаем изображение рецепта
-            AsyncImage(
-                model = recipe.image,
-                contentDescription = null,
-                modifier = Modifier.fillMaxWidth().height(150.dp),
-                contentScale = ContentScale.Crop
+        items(recipes) { recipe ->
+            RecipeItem(
+                recipe = recipe,
+                onClick = { navController.navigate("recipeDetail/${recipe.id}") },
+                recipesViewModel = recipesViewModel
             )
         }
     }
 }
 
+@Composable
+fun RecipeItem(
+    recipe: Recipe,
+    onClick: () -> Unit,
+    recipesViewModel: RecipesViewModel
+) {
+    val isFavorite = recipesViewModel.isFavorite(recipe)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(recipe.title, style = MaterialTheme.typography.bodyLarge)
+                IconButton(onClick = { recipesViewModel.toggleFavorite(recipe) }) {
+                    Icon(
+                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = "Избранное",
+                        tint = if (isFavorite) Color.Red else Color.Gray
+                    )
+                }
+            }
+
+            AsyncImage(
+                model = recipe.image,
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp),
+                contentScale = ContentScale.Crop
+            )
+        }
+    }
+}
 
 @Composable
 private fun CategoriesGrid(navController: NavController) {
@@ -735,7 +772,6 @@ private fun CategoryItem(title: String, imageRes: Int, onClick: () -> Unit) {
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
     ) {
-        // Картинка
         Image(
             painter = painterResource(id = imageRes),
             contentDescription = title,
@@ -760,23 +796,23 @@ private fun CategoryItem(title: String, imageRes: Int, onClick: () -> Unit) {
 @Composable
 fun CategoryRecipesScreen(
     navController: NavController,
-    categoryName: String
+    categoryName: String,
+    recipesViewModel: RecipesViewModel
 ) {
-    val viewModel: RecipesViewModel = viewModel()
 
     var searchQuery by remember { mutableStateOf("") }
 
     // Загрузка рецептов по категории при изменении categoryName
     LaunchedEffect(categoryName) {
-        viewModel.loadCategoryRecipes(categoryName)
+        recipesViewModel.loadCategoryRecipes(categoryName)
     }
 
     // Обновление рецептов при изменении поискового запроса
     LaunchedEffect(searchQuery) {
         if (searchQuery.length > 2) {
-            viewModel.searchInCategory(categoryName, searchQuery)
+            recipesViewModel.searchInCategory(categoryName, searchQuery)
         } else {
-            viewModel.loadCategoryRecipes(categoryName)
+            recipesViewModel.loadCategoryRecipes(categoryName)
         }
     }
 
@@ -793,6 +829,12 @@ fun CategoryRecipesScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent
                 )
+            )
+        },
+        bottomBar = {
+            BottomNavigationBar(
+                currentRoute = "category/${categoryName}",
+                onNavigate = { navController.navigate(it) }
             )
         }
     ) { padding ->
@@ -834,29 +876,34 @@ fun CategoryRecipesScreen(
 
             // Показываем разные состояния в зависимости от загрузки, ошибки или данных
             when {
-                viewModel.isLoading -> {
+                recipesViewModel.isLoading -> {
                     LoadingIndicator()
                 }
-                viewModel.recipes.isEmpty() -> {
+                recipesViewModel.recipes.isEmpty() -> {
                     EmptyResults()
                 }
                 else -> {
-                    RecipesList(viewModel.recipes, navController)
+                    RecipesList(recipesViewModel.recipes, navController, recipesViewModel)
                 }
             }
         }
     }
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RecipeDetailScreen(navController: NavController, recipeId: Int, viewModel: RecipesViewModel = viewModel()) {
+fun RecipeDetailScreen(
+    navController: NavController,
+    recipeId: Int,
+    recipesViewModel: RecipesViewModel
+) {
     // Загружаем информацию о рецепте при изменении recipeId
     LaunchedEffect(recipeId) {
-        viewModel.loadRecipeInformation(recipeId)
+        recipesViewModel.loadRecipeInformation(recipeId)
     }
 
-    val recipeInformation = viewModel.recipeInformation
+    val recipeInformation = recipesViewModel.recipeInformation
 
     Scaffold(
         topBar = {
@@ -877,7 +924,7 @@ fun RecipeDetailScreen(navController: NavController, recipeId: Int, viewModel: R
                 .fillMaxSize()
         ) {
             // Если идет загрузка, показываем индикатор
-            if (viewModel.isLoading) {
+            if (recipesViewModel.isLoading) {
                 LoadingIndicator()
             } else if (recipeInformation != null) {
                 RecipeDetailContent(recipeInformation)
@@ -979,6 +1026,73 @@ fun RecipeDetailContent(recipeInformation: RecipeInformation) {
                 )
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FavoritesScreen(
+    navController: NavController,
+    recipesViewModel: RecipesViewModel
+) {
+    val favorites = recipesViewModel.favorites
+
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("Избранное") })
+        },
+        bottomBar = {
+            BottomNavigationBar(
+                currentRoute = "favorites",
+                onNavigate = { navController.navigate(it) }
+            )
+        }
+    ) { padding ->
+        if (favorites.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Нет избранных рецептов.")
+            }
+        } else {
+            RecipesList(
+                recipes = favorites,
+                navController = navController,
+                recipesViewModel = recipesViewModel,
+                contentPadding = padding
+            )
+        }
+    }
+}
+
+
+@Composable
+fun BottomNavigationBar(
+    currentRoute: String,
+    onNavigate: (String) -> Unit
+) {
+    NavigationBar {
+        NavigationBarItem(
+            selected = currentRoute == "profile",
+            onClick = { onNavigate("profile") },
+            icon = { Icon(Icons.Default.Person, contentDescription = "Профиль") },
+            label = { Text("Профиль") }
+        )
+        NavigationBarItem(
+            selected = currentRoute == "search",
+            onClick = { onNavigate("search") },
+            icon = { Icon(Icons.Default.Search, contentDescription = "Поиск") },
+            label = { Text("Поиск") }
+        )
+        NavigationBarItem(
+            selected = currentRoute == "favorites",
+            onClick = { onNavigate("favorites") },
+            icon = { Icon(Icons.Default.FavoriteBorder, contentDescription = "Избранное") },
+            label = { Text("Избранное") }
+        )
     }
 }
 

@@ -1,4 +1,5 @@
 import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,6 +17,21 @@ class RecipesViewModel : ViewModel() {
 
     private val _isLoading = mutableStateOf(false)
     val isLoading: Boolean get() = _isLoading.value
+
+    private val _favorites = mutableStateListOf<Recipe>()
+    val favorites: List<Recipe> = _favorites
+
+    fun toggleFavorite(recipe: Recipe) {
+        if (_favorites.any { it.id == recipe.id }) {
+            _favorites.removeAll { it.id == recipe.id }
+        } else {
+            _favorites.add(recipe)
+        }
+    }
+
+    fun isFavorite(recipe: Recipe): Boolean {
+        return _favorites.any { it.id == recipe.id }
+    }
 
     // Метод для очистки результатов
     fun clearResults() {
