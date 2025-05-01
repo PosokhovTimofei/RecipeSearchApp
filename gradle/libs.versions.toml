@@ -20,6 +20,7 @@ materialIconsExtended = "1.7.8"
 navigationCompose = "2.8.9"
 retrofit = "2.9.0"
 runtimeLivedata = "1.8.0"
+firebasePerfKtx = "21.0.5"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -50,6 +51,7 @@ kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutine
 logging-interceptor = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "loggingInterceptor" }
 material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" }
 retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
+firebase-perf-ktx = { group = "com.google.firebase", name = "firebase-perf-ktx", version.ref = "firebasePerfKtx" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

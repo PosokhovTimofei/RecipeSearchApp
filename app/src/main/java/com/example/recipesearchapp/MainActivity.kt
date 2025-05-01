@@ -2,11 +2,28 @@ package com.example.recipesearchapp
 
 import RecipesViewModel
 import android.os.Bundle
+import android.text.Html
 import android.util.Log
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,11 +43,14 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
@@ -38,8 +58,11 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MonitorHeart
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
@@ -61,24 +84,30 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
@@ -86,6 +115,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.example.recipesearchapp.ui.theme.RecipeSearchAppTheme
+import androidx.compose.animation.animateContentSize
 
 
 class MainActivity : ComponentActivity() {
@@ -707,11 +737,15 @@ fun RecipeItem(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(recipe.title, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    text = recipe.title,
+                    modifier = Modifier.weight(1f), // Занимает всё свободное пространство
+                    maxLines = 2, // Ограничение строк
+                    overflow = TextOverflow.Ellipsis // "..." если текст не помещается
+                )
                 IconButton(onClick = { recipesViewModel.toggleFavorite(recipe) }) {
                     Icon(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
@@ -815,77 +849,116 @@ fun CategoryRecipesScreen(
             recipesViewModel.loadCategoryRecipes(categoryName)
         }
     }
-
-    Scaffold(
-        containerColor = Color.Transparent,
-        topBar = {
-            TopAppBar(
-                title = { Text(categoryName) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = R.drawable.background),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                TopAppBar(
+                    title = { Text(categoryName) },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent
+                    )
                 )
-            )
-        },
-        bottomBar = {
-            BottomNavigationBar(
-                currentRoute = "category/${categoryName}",
-                onNavigate = { navController.navigate(it) }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .padding(16.dp)
-                .fillMaxSize()
-        ) {
-            // Поле для ввода запроса
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Поиск в $categoryName") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(
-                onClick = { /* TODO: открыть фильтры */ },
+            },
+            bottomBar = {
+                BottomNavigationBar(
+                    currentRoute = "category/${categoryName}",
+                    onNavigate = { navController.navigate(it) }
+                )
+            }
+        ) { padding ->
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Color.Black
-                ),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
-                shape = RoundedCornerShape(12.dp)
+                    .padding(padding)
+                    .padding(16.dp)
+                    .fillMaxSize()
             ) {
-                Icon(Icons.Default.Tune, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Фильтры")
-            }
+                // Поле для ввода запроса
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Поиск в $categoryName") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-            // Показываем разные состояния в зависимости от загрузки, ошибки или данных
-            when {
-                recipesViewModel.isLoading -> {
-                    LoadingIndicator()
+                Button(
+                    onClick = { /* TODO: открыть фильтры */ },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = Color.Black
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Tune, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Фильтры")
                 }
-                recipesViewModel.recipes.isEmpty() -> {
-                    EmptyResults()
-                }
-                else -> {
-                    RecipesList(recipesViewModel.recipes, navController, recipesViewModel)
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Показываем разные состояния в зависимости от загрузки, ошибки или данных
+                when {
+                    recipesViewModel.isLoading -> {
+                        LoadingIndicator()
+                    }
+
+                    recipesViewModel.recipes.isEmpty() -> {
+                        EmptyResults()
+                    }
+
+                    else -> {
+                        RecipesList(recipesViewModel.recipes, navController, recipesViewModel)
+                    }
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalAnimationApi::class)
+@Composable
+private fun IngredientItem(
+    ingredient: Ingredient,
+    index: Int,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = true,
+        enter = fadeIn() + slideInHorizontally { (index + 1) * 50 },
+        exit = fadeOut() + slideOutHorizontally { -(index + 1) * 50 }
+    ) {
+        Row(
+            modifier = modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "• ${ingredient.name}:",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = "${ingredient.amount} ${ingredient.unit}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
@@ -904,126 +977,171 @@ fun RecipeDetailScreen(
     }
 
     val recipeInformation = recipesViewModel.recipeInformation
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Рецепт") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = R.drawable.background),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                TopAppBar(
+                    title = { Text("Рецепт") },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        }
                     }
+                )
+            }
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .padding(padding)
+                    .padding(16.dp)
+                    .fillMaxSize()
+            ) {
+                // Если идет загрузка, показываем индикатор
+                if (recipesViewModel.isLoading) {
+                    LoadingIndicator()
+                } else if (recipeInformation != null) {
+                    RecipeDetailContent(recipeInformation)
+                } else {
+                    EmptyResults()  // Если информации нет, показываем сообщение
                 }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .padding(16.dp)
-                .fillMaxSize()
-        ) {
-            // Если идет загрузка, показываем индикатор
-            if (recipesViewModel.isLoading) {
-                LoadingIndicator()
-            } else if (recipeInformation != null) {
-                RecipeDetailContent(recipeInformation)
-            } else {
-                EmptyResults()  // Если информации нет, показываем сообщение
             }
         }
     }
 }
 
-
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
-fun RecipeDetailContent(recipeInformation: RecipeInformation) {
-    Column {
-        // Название рецепта
-        Text(
-            text = recipeInformation.title ?: "Без названия",
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
+fun RecipeDetailContent(
+    recipeInformation: RecipeInformation,
+    modifier: Modifier = Modifier
+) {
+    val scrollState = rememberScrollState()
 
-        // Изображение рецепта
-        AsyncImage(
-            model = recipeInformation.image,
-            contentDescription = null,
-            modifier = Modifier
-                .height(200.dp)
-                .fillMaxWidth(),
-            contentScale = ContentScale.Crop
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(16.dp)
+            .animateContentSize()
+    ) {
+        // Анимированное появление заголовка
+        AnimatedVisibility(
+            visible = true,
+            enter = fadeIn() + slideInVertically { it / 2 },
+            exit = fadeOut() + slideOutVertically { -it / 2 }
+        ) {
+            Text(
+                text = recipeInformation.title ?: "Без названия",
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+        }
+
+        // Анимированное изображение
+        AnimatedVisibility(
+            visible = true,
+            enter = fadeIn() + scaleIn(initialScale = 0.9f),
+            exit = fadeOut() + scaleOut(targetScale = 0.9f)
+        ) {
+            AsyncImage(
+                model = recipeInformation.image,
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(240.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Анимированные метрики рецепта
+        RecipeMetrics(
+            time = recipeInformation.readyInMinutes,
+            servings = recipeInformation.servings,
+            healthScore = recipeInformation.healthScore
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Инструкции по приготовлению
-        recipeInformation.instructions?.let { instructions ->
-            Text(
-                text = instructions,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-        }
-
-        // Ингредиенты
-        if (!recipeInformation.ingredients.isNullOrEmpty()) {
-            Text(
-                text = "Ингредиенты:",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-            recipeInformation.ingredients.orEmpty().forEach { ingredient ->
+        // Ингредиенты с последовательной анимацией
+        AnimatedVisibility(
+            visible = !recipeInformation.ingredients.isNullOrEmpty(),
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Column {
                 Text(
-                    text = "${ingredient.name}: ${ingredient.amount} ${ingredient.unit}",
-                    style = MaterialTheme.typography.bodySmall
+                    text = "Ингредиенты:",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(vertical = 8.dp)
                 )
+
+                recipeInformation.ingredients?.forEachIndexed { index, ingredient ->
+                    key(ingredient.name) {
+                        IngredientItem(
+                            ingredient = ingredient,
+                            index = index,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Инструкции с плавным появлением
+        recipeInformation.instructions?.let { instructions ->
+            AnimatedVisibility(
+                visible = instructions.isNotBlank(),
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column {
+                    Text(
+                        text = "Инструкции:",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    HtmlText(
+                        html = instructions,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+            }
+        }
+
         // Дополнительная информация
-        recipeInformation.readyInMinutes?.let {
-            Text(
-                text = "Время приготовления: ${it} минут",
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-        recipeInformation.servings?.let {
-            Text(
-                text = "Порции: $it",
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-        recipeInformation.diet?.let {
-            Text(
-                text = "Диетический тип: $it",
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-        recipeInformation.healthScore?.let {
-            Text(
-                text = "Оценка здоровья: $it",
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Типы кухни
-        if (!recipeInformation.cuisines.isNullOrEmpty()) {
-            Text(
-                text = "Типы кухни:",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-            recipeInformation.cuisines.orEmpty().forEach { cuisine ->
-                Text(
-                    text = cuisine,
-                    style = MaterialTheme.typography.bodySmall
-                )
+        recipeInformation.cuisines?.let { cuisines ->
+            if (cuisines.isNotEmpty()) {
+                AnimatedVisibility(
+                    visible = true,
+                    enter = fadeIn() + slideInHorizontally { it },
+                    exit = fadeOut() + slideOutHorizontally { -it }
+                ) {
+                    Column(modifier = Modifier.padding(top = 12.dp)) {
+                        Text(
+                            text = "Типы кухни:",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                        cuisines.forEach { cuisine ->
+                            Text(
+                                text = "• $cuisine",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -1036,34 +1154,42 @@ fun FavoritesScreen(
     recipesViewModel: RecipesViewModel
 ) {
     val favorites = recipesViewModel.favorites
-
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Избранное") })
-        },
-        bottomBar = {
-            BottomNavigationBar(
-                currentRoute = "favorites",
-                onNavigate = { navController.navigate(it) }
-            )
-        }
-    ) { padding ->
-        if (favorites.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Нет избранных рецептов.")
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = R.drawable.background),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                TopAppBar(title = { Text("Избранное") })
+            },
+            bottomBar = {
+                BottomNavigationBar(
+                    currentRoute = "favorites",
+                    onNavigate = { navController.navigate(it) }
+                )
             }
-        } else {
-            RecipesList(
-                recipes = favorites,
-                navController = navController,
-                recipesViewModel = recipesViewModel,
-                contentPadding = padding
-            )
+        ) { padding ->
+            if (favorites.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Нет избранных рецептов.")
+                }
+            } else {
+                RecipesList(
+                    recipes = favorites,
+                    navController = navController,
+                    recipesViewModel = recipesViewModel,
+                    contentPadding = padding
+                )
+            }
         }
     }
 }
@@ -1096,9 +1222,99 @@ fun BottomNavigationBar(
     }
 }
 
+@Composable
+fun HtmlText(html: String, modifier: Modifier = Modifier) {
+    AndroidView(
+        modifier = modifier,
+        factory = { context ->
+            TextView(context).apply {
+                text = Html.fromHtml(html, Html.FROM_HTML_MODE_COMPACT)
+            }
+        }
+    )
+}
 
+@Composable
+fun AnimatedCounter(
+    targetValue: Number,  // Принимаем любой числовой тип
+    style: TextStyle,
+    duration: Int = 1000
+) {
+    val animatedValue by animateFloatAsState(  // Используем animateFloatAsState вместо animateIntAsState
+        targetValue = targetValue.toFloat(),
+        animationSpec = tween(duration, easing = LinearEasing),
+        label = "counterAnimation"
+    )
 
+    Text(
+        text = "%.0f".format(animatedValue),  // Форматируем без десятичных знаков
+        style = style
+    )
+}
 
+@Composable
+fun AnimatedIcon(
+    icon: ImageVector,
+    contentDescription: String? = null
+) {
+    val alpha by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = tween(500),
+        label = "iconAnimation"
+    )
+
+    Icon(
+        imageVector = icon,
+        contentDescription = contentDescription,
+        modifier = Modifier.alpha(alpha),
+        tint = MaterialTheme.colorScheme.primary
+    )
+}
+
+@Composable
+fun RecipeMetrics(
+    time: Int?,
+    servings: Int?,
+    healthScore: Float  // Изменили с Float на Int
+) {
+    val items = listOfNotNull(
+        time?.let { Triple(Icons.Default.Timer, "Время", it) },
+        servings?.let { Triple(Icons.Default.People, "Порции", it) },
+        healthScore?.let { Triple(Icons.Default.MonitorHeart, "Здоровье", it) }
+    )
+
+    LazyRow(
+        modifier = Modifier.padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        items(items) { (icon, label, value) ->
+            MetricItem(icon, label, value)
+        }
+    }
+}
+
+@OptIn(ExperimentalAnimationApi::class)
+@Composable
+private fun MetricItem(
+    icon: ImageVector,
+    label: String,
+    value: Number  // Изменили с Number на Int
+) {
+    AnimatedVisibility(
+        visible = true,
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically()
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            AnimatedIcon(icon)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = label, style = MaterialTheme.typography.labelSmall)
+            AnimatedCounter(value, MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
 
 
 
